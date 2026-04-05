@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LoanProj — CMA Report Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════
+   VARIABLES & RESET
+═══════════════════════════════════════════════ */
+:root{
+  --ink:#0f0e0b;--paper:#f5f2eb;--cream:#ede9df;--accent:#c8401a;--accent2:#1a5fa8;
+  --gold:#b8922a;--muted:#7a7567;--border:#ccc8be;--green:#1a7a4a;
+  --shadow:0 2px 16px rgba(15,14,11,.09);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;font-size:14px}
+
+/* ═══════════════════════════════════════════════
+   HEADER & TOPBAR
+═══════════════════════════════════════════════ */
+header{background:var(--ink);color:var(--paper);padding:.85rem 1.5rem;display:flex;align-items:center;gap:.75rem;position:sticky;top:0;z-index:200;border-bottom:3px solid var(--accent)}
+header h1{font-family:'DM Serif Display',serif;font-size:1.3rem;letter-spacing:.01em}
+.hbadge{font-family:'DM Mono',monospace;font-size:.6rem;background:var(--accent);color:#fff;padding:2px 8px;border-radius:2px;letter-spacing:1px}
+.htag{margin-left:auto;font-size:.7rem;color:#8a8680;font-family:'DM Mono',monospace}
+.topbar{background:var(--cream);border-bottom:1px solid var(--border);padding:.5rem 1.5rem;display:flex;align-items:center;gap:.65rem;flex-wrap:wrap}
+.tbl{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+.tog{display:flex;border:1.5px solid var(--border);border-radius:5px;overflow:hidden}
+.tog button{padding:.3rem .85rem;border:none;background:#fff;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.76rem;font-weight:500;color:var(--muted);border-right:1px solid var(--border);transition:all .15s}
+.tog button:last-child{border-right:none}
+.tog button.on{background:var(--ink);color:#fff;font-weight:600}
+
+/* ═══════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════ */
+.wrap{max-width:1380px;margin:0 auto;padding:1.2rem}
+.card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:.9rem;box-shadow:var(--shadow)}
+.ctitle{font-family:'DM Serif Display',serif;font-size:.98rem;margin-bottom:.9rem;padding-bottom:.5rem;border-bottom:2px solid var(--cream);display:flex;align-items:center;gap:.45rem}
+.ctitle::before{content:'';width:4px;height:.98rem;background:var(--accent);border-radius:2px;display:inline-block}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:.8rem}
+.gf{grid-column:1/-1}
+@media(max-width:1000px){.g5,.g4{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:700px){.g5,.g4,.g3{grid-template-columns:1fr 1fr}}
+
+/* ═══════════════════════════════════════════════
+   FIELDS
+═══════════════════════════════════════════════ */
+.field{display:flex;flex-direction:column;gap:.24rem}
+label{font-size:.63rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+label.gold{color:var(--gold)}
+input,select,textarea{border:1.5px solid var(--border);border-radius:5px;padding:.42rem .65rem;font-family:'DM Mono',monospace;font-size:.81rem;color:var(--ink);background:var(--paper);transition:border-color .15s;outline:none;width:100%}
+input:focus,select:focus{border-color:var(--accent2);background:#fff}
+.pfx{position:relative}.pfx span{position:absolute;left:.6rem;top:50%;transform:translateY(-50%);font-size:.76rem;color:var(--muted);pointer-events:none}
+.pfx input{padding-left:1.28rem}
+.sfx{position:relative}.sfx span{position:absolute;right:.6rem;top:50%;transform:translateY(-50%);font-size:.71rem;color:var(--muted);pointer-events:none}
+.sfx input{padding-right:1.7rem}
+.sep{margin:.8rem 0 .45rem;font-size:.63rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:.5rem}
+.sep::after{content:'';flex:1;height:1px;background:var(--border)}
+.helper{font-size:.63rem;color:var(--muted);margin-top:.2rem;font-style:italic}
+
+/* EXPENSE TABLE */
+.etbl{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:.4rem}
+.etbl th{background:var(--cream);padding:.35rem .55rem;font-size:.62rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);text-align:left}
+.etbl th:not(:first-child){text-align:right}
+.etbl td{padding:.2rem .55rem;border-bottom:1px solid #f0ede6;vertical-align:middle}
+.etbl td input{padding:.2rem .45rem;font-size:.77rem;border-radius:3px}
+
+/* ═══════════════════════════════════════════════
+   PREVIEW BOX
+═══════════════════════════════════════════════ */
+.pvbox{background:#fff9ec;border:1px solid #e8d59a;border-radius:6px;padding:.72rem 1rem;margin-top:.9rem}
+.pvtitle{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#b8922a;margin-bottom:.5rem}
+.pvgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:.45rem}
+@media(max-width:900px){.pvgrid{grid-template-columns:repeat(3,1fr)}}
+.pvitem{background:#fff;border-radius:4px;padding:.4rem .6rem;border:1px solid #e8d59a}
+.pvl{font-size:.57rem;text-transform:uppercase;letter-spacing:.4px;color:#9a8030;font-weight:600}
+.pvv{font-family:'DM Mono',monospace;font-size:.82rem;font-weight:700;color:var(--ink);margin-top:.06rem}
+.pvv.ok{color:var(--green)}.pvv.warn{color:#b8922a}.pvv.bad{color:var(--accent)}
+
+/* ═══════════════════════════════════════════════
+   GENERATE BAR & BUTTONS
+═══════════════════════════════════════════════ */
+.genbar{background:var(--ink);border-radius:7px;padding:.82rem 1.1rem;display:flex;align-items:center;gap:.85rem;margin-bottom:1rem;flex-wrap:wrap}
+.gbt{font-family:'DM Serif Display',serif;color:#fff;font-size:.95rem}
+.gbs{font-size:.65rem;color:#8a8680;font-family:'DM Mono',monospace;margin-top:.07rem}
+.gbr{margin-left:auto;display:flex;gap:.5rem}
+.btn{display:inline-flex;align-items:center;gap:.35rem;padding:.56rem 1.25rem;border-radius:6px;border:none;font-family:'Outfit',sans-serif;font-size:.84rem;font-weight:600;cursor:pointer;transition:all .15s}
+.bp{background:var(--accent);color:#fff}.bp:hover{background:#a5341a;transform:translateY(-1px)}
+.bd{background:var(--ink);color:#fff}.bd:hover{opacity:.8}
+.bg{background:transparent;border:1.5px solid rgba(255,255,255,.3);color:#fff}.bg:hover{background:rgba(255,255,255,.1)}
+.bgs{background:transparent;border:1.5px solid var(--border);color:var(--ink)}.bgs:hover{background:var(--cream)}
+.bsm{padding:.34rem .78rem;font-size:.74rem}
+
+/* ═══════════════════════════════════════════════
+   MODE TABS
+═══════════════════════════════════════════════ */
+.mode-tabs{display:flex;gap:0;margin-bottom:.8rem;border-bottom:2px solid var(--border)}
+.mode-tab{padding:.42rem 1.2rem;border:none;background:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.8rem;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.mode-tab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+.sub-tabs{display:flex;gap:0;margin-bottom:.75rem;border-bottom:1.5px solid var(--border)}
+.sub-tab{padding:.36rem 1rem;border:none;background:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.76rem;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1.5px;transition:all .15s}
+.sub-tab.on{color:var(--accent2);border-bottom-color:var(--accent2);font-weight:600}
+
+/* ═══════════════════════════════════════════════
+   NOTICES
+═══════════════════════════════════════════════ */
+.notice{background:#f0f7ff;border:1px solid #b8d4f0;border-radius:6px;padding:.5rem .85rem;font-size:.7rem;color:#1a4a7a;margin-bottom:.8rem}
+.actrow{display:flex;gap:.5rem;margin-bottom:.8rem;flex-wrap:wrap}
+.abadge{display:inline-flex;align-items:center;gap:.3rem;font-size:.61rem;background:#edf7f2;color:var(--green);border:1px solid #a8dfc0;border-radius:3px;padding:1px 6px;font-weight:600;margin-left:.5rem}
+
+/* ═══════════════════════════════════════════════
+   OUTPUT — SCREEN
+═══════════════════════════════════════════════ */
+#output{animation:fi .3s ease}
+@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.rcard{background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:1.3rem}
+.rhdr{background:var(--ink);color:#fff;padding:.65rem 1.2rem;display:flex;justify-content:space-between;align-items:center}
+.rhdr h3{font-family:'DM Serif Display',serif;font-size:.9rem}
+.rbadge{font-family:'DM Mono',monospace;font-size:.59rem;background:var(--accent);padding:2px 7px;border-radius:3px;letter-spacing:.3px}
+.rnote{padding:.32rem 1rem;font-size:.65rem;color:var(--muted);background:var(--cream)}
+.ts{overflow-x:auto}
+.rt{width:100%;border-collapse:collapse;font-size:.76rem}
+.rt thead th{background:var(--cream);padding:.42rem .72rem;text-align:right;font-family:'DM Mono',monospace;font-size:.62rem;font-weight:700;letter-spacing:.4px;color:var(--muted);border-bottom:2px solid var(--border);white-space:nowrap}
+.rt thead th:first-child{text-align:left;min-width:200px}
+.rt tbody tr{border-bottom:1px solid #f0ede6}
+.rt tbody tr:hover{background:#faf9f5}
+.rt td{padding:.38rem .72rem;text-align:right;font-family:'DM Mono',monospace;font-size:.75rem;color:#3a3830;white-space:nowrap}
+.rt td:first-child{text-align:left;color:var(--ink);font-family:'Outfit',sans-serif;white-space:normal}
+.rs td{background:#f0ede6!important;font-weight:700;font-size:.68rem!important;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)!important;padding-top:.75rem!important;font-family:'Outfit',sans-serif!important}
+.ri td:first-child{padding-left:1.4rem;font-size:.73rem}
+.ri2 td:first-child{padding-left:2.4rem;color:#8a8275!important;font-size:.71rem}
+.rt-tot td{font-weight:700!important;background:#e8e4da!important;border-top:2px solid var(--border)!important;border-bottom:2px solid var(--border)!important}
+.rt-tot td:first-child{font-family:'Outfit',sans-serif!important}
+.rt-p td{background:#edf7f2!important;font-weight:700!important;color:var(--green)!important;border-top:2.5px double var(--green)!important}
+.rt-p td:first-child{font-family:'Outfit',sans-serif!important}
+.rt-neg td{background:#fff0ed!important;font-weight:700!important;color:var(--accent)!important;border-top:2px solid #f5c4b3!important}
+.rt-neg td:first-child{font-family:'Outfit',sans-serif!important}
+.rt-hl td{background:#fff9ec!important;font-weight:700!important;color:#b8922a!important;border-top:2px solid #e8d59a!important;border-bottom:2px solid #e8d59a!important}
+.rt-hl td:first-child{font-family:'Outfit',sans-serif!important}
+.rt-b td{padding:.1rem!important;background:#faf9f5!important}
+
+/* ENTITY BAR */
+.ebar{background:#fff;border:1px solid var(--border);border-left:4px solid var(--gold);border-radius:6px;padding:.7rem 1.2rem;margin-bottom:.9rem;display:flex;gap:1.6rem;flex-wrap:wrap;align-items:flex-start}
+.ef{display:flex;flex-direction:column;gap:.08rem}
+.efl{font-size:.58rem;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:600}
+.efv{font-family:'DM Serif Display',serif;font-size:.86rem}
+
+/* INDICATOR CARDS */
+.indgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:.7rem;padding:.85rem;background:var(--cream)}
+@media(max-width:900px){.indgrid{grid-template-columns:repeat(3,1fr)}}
+.icard{background:#fff;border-radius:6px;padding:.68rem;border:1px solid var(--border)}
+.it{font-size:.59rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:.3rem;font-weight:600}
+.ir{display:flex;justify-content:space-between;padding:.08rem 0}
+.iy{font-size:.64rem;color:var(--muted)}.iv{font-family:'DM Mono',monospace;font-size:.8rem;font-weight:700}
+.ig{color:var(--green)}.iw{color:#b8922a}.ib{color:var(--accent)}
+
+/* SENSITIVITY */
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;padding:.8rem}
+@media(max-width:800px){.sgrid{grid-template-columns:1fr 1fr}}
+.scard{background:#fff;border-radius:6px;border:1px solid var(--border);overflow:hidden}
+.shdr{padding:.4rem .7rem;font-size:.68rem;font-weight:700}
+.sbdy{padding:.4rem .7rem;font-size:.75rem}
+.sr{display:flex;justify-content:space-between;padding:.14rem 0;border-bottom:1px solid #f0ede6}
+.sr:last-child{border-bottom:none}
+
+/* RATIO ANALYSIS */
+.ratio-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;padding:.85rem;background:var(--cream)}
+@media(max-width:900px){.ratio-grid{grid-template-columns:1fr 1fr}}
+.ratio-card{background:#fff;border-radius:6px;border:1px solid var(--border);padding:.8rem;position:relative;overflow:hidden}
+.ratio-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.ratio-card.green::before{background:var(--green)}
+.ratio-card.gold::before{background:var(--gold)}
+.ratio-card.red::before{background:var(--accent)}
+.ratio-card.blue::before{background:var(--accent2)}
+.rc-label{font-size:.59rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;margin-bottom:.35rem}
+.rc-value{font-family:'DM Serif Display',serif;font-size:1.5rem;line-height:1;margin-bottom:.25rem}
+.rc-value.green{color:var(--green)}.rc-value.gold{color:var(--gold)}.rc-value.red{color:var(--accent)}.rc-value.blue{color:var(--accent2)}
+.rc-bench{font-size:.62rem;color:var(--muted);margin-bottom:.4rem}
+.rc-bar{height:5px;border-radius:3px;background:#f0ede6;margin-bottom:.4rem}
+.rc-fill{height:100%;border-radius:3px;transition:width .5s ease}
+.rc-trend{display:flex;gap:.25rem;flex-wrap:wrap}
+.rc-yr{font-size:.59rem;font-family:'DM Mono',monospace;background:var(--cream);padding:1px 5px;border-radius:2px;color:var(--ink)}
+
+/* ═══════════════════════════════════════════════
+   PRINT STYLES — PROFESSIONAL
+═══════════════════════════════════════════════ */
+@media print{
+  /* Hide all UI elements */
+  header,.topbar,.genbar,.card,.actrow,.notice,.pvbox,.mode-tabs,
+  .sub-tabs,#inputSection,.helper,.abadge{display:none!important}
+
+  body{background:#fff;font-size:10pt;color:#000}
+  .wrap{padding:0;max-width:100%}
+
+  /* Cover page */
+  .print-cover{display:block!important}
+
+  /* Each rcard = one page */
+  .rcard{
+    break-before:page;
+    break-inside:avoid;
+    box-shadow:none;
+    margin:0;
+    border:none;
+    border-radius:0;
+    page-break-before:always;
+  }
+  .rcard:first-of-type{break-before:avoid;page-break-before:avoid}
+
+  /* Print header on every page (entity bar acts as running header) */
+  .ebar{
+    break-before:avoid!important;
+    page-break-before:avoid!important;
+    border:1px solid #ccc;
+    border-left:4px solid #b8922a;
+    margin-bottom:.4rem;
+    padding:.4rem .8rem;
+  }
+
+  .rhdr{background:#1a1a18!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:.5rem .9rem}
+  .rhdr h3{font-size:10pt}
+  .rbadge{background:#c8401a!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* Table print styling */
+  .ts{overflow:visible}
+  .rt{font-size:8.5pt}
+  .rt thead th{background:#ede9df!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:.3rem .5rem;font-size:7pt}
+  .rt td{padding:.28rem .5rem}
+  .rt tbody tr:hover{background:transparent}
+
+  /* Row colours for print */
+  .rs td{background:#e8e4da!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rt-tot td{background:#d8d4ca!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rt-p td{background:#d4ede0!important;color:#1a5a38!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rt-hl td{background:#f5ecd4!important;color:#8a6010!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rt-neg td{background:#fce8e2!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* Ratio & sensitivity sections */
+  .ratio-grid{grid-template-columns:repeat(4,1fr);background:#f0ede6!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:.4rem}
+  .ratio-card{border:1px solid #ccc;padding:.5rem}
+  .ratio-card::before{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .sgrid{grid-template-columns:repeat(3,1fr);padding:.4rem}
+  .indgrid{background:#e8e4da!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:.4rem}
+
+  /* print footer */
+  .print-footer{display:block!important;font-size:7pt;color:#888;text-align:center;padding:.3rem;border-top:1px solid #ddd;margin-top:.3rem}
+
+  /* RNOTE */
+  .rnote{font-size:7pt}
+}
+
+/* Cover page (hidden on screen) */
+.print-cover{display:none}
+.print-footer{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>LoanProj</h1>
+  <span class="hbadge">CMA REPORT GENERATOR</span>
+  <div class="htag">RBI / CMA / Tandon Format · India</div>
+</header>
+
+<div class="topbar">
+  <span class="tbl">Loan Type:</span>
+  <div class="tog">
+    <button class="on" id="ltCC" onclick="setLT('CC')">CC / OD</button>
+    <button id="ltTL" onclick="setLT('TL')">Term Loan</button>
+  </div>
+  <span class="tbl" style="margin-left:.5rem">Business:</span>
+  <div class="tog">
+    <button class="on" id="btT" onclick="setBT('trading')">Trading</button>
+    <button id="btS" onclick="setBT('service')">Services</button>
+    <button id="btM" onclick="setBT('manufacturing')">Manufacturing</button>
+    <button id="btC" onclick="setBT('construction')">Construction</button>
+  </div>
+  <span class="tbl" style="margin-left:.5rem">WC Method:</span>
+  <div class="tog">
+    <button class="on" id="wmT" onclick="setWM('turnover')">Turnover</button>
+    <button id="wmM" onclick="setWM('mpbf')">MPBF</button>
+    <button id="wmO" onclick="setWM('opercycle')">Op. Cycle</button>
+  </div>
+</div>
+
+<div class="wrap" id="inputSection">
+  <div class="genbar">
+    <div>
+      <div class="gbt">Generate CMA Report</div>
+      <div class="gbs">Simple mode: just enter loan amount · Detailed mode: full control over every figure</div>
+    </div>
+    <div class="gbr">
+      <button class="btn bg bsm" onclick="resetAll()">↺ Reset</button>
+      <button class="btn bp" onclick="generate()">⚡ Generate Report</button>
+    </div>
+  </div>
+
+  <!-- MODE TABS -->
+  <div class="mode-tabs">
+    <button class="mode-tab on" id="modeSimple" onclick="setMode('simple')">Simple Mode</button>
+    <button class="mode-tab" id="modeDetailed" onclick="setMode('detailed')">Detailed Mode</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SIMPLE MODE
+  ══════════════════════════════════════════ -->
+  <div id="simplePane">
+    <div class="card">
+      <div class="ctitle">Applicant & Loan Details</div>
+      <div class="g4">
+        <div class="field"><label>Business / Firm Name</label><input id="s_bizName" placeholder="e.g. Srinivas Traders"/></div>
+        <div class="field"><label>Proprietor / Partner Name</label><input id="s_propName" placeholder="Full name"/></div>
+        <div class="field"><label>PAN (optional)</label><input id="s_pan" placeholder="XXXXX0000X" maxlength="10"/></div>
+        <div class="field"><label>Prepared By (CA / Firm)</label><input id="s_preparedBy" placeholder="CA firm name"/></div>
+        <div class="field">
+          <label>★ Loan Amount (₹)</label>
+          <div class="pfx"><span>₹</span><input id="s_loan" type="number" value="500000" min="50000" step="10000" oninput="simpleAutoFill()"/></div>
+          <span class="helper">All other figures derive from this</span>
+        </div>
+        <div class="field">
+          <label>Interest Rate (% p.a.)</label>
+          <div class="sfx"><span>%</span><input id="s_intRate" type="number" value="11.5" step=".25" oninput="simpleAutoFill()"/></div>
+        </div>
+        <div class="field">
+          <label>Base Financial Year</label>
+          <select id="s_baseYear" onchange="simpleAutoFill()">
+            <option value="2025">FY 2024-25</option>
+            <option value="2026" selected>FY 2025-26</option>
+            <option value="2027">FY 2026-27</option>
+            <option value="2028">FY 2027-28</option>
+            <option value="2029">FY 2028-29</option>
+            <option value="2030">FY 2029-30</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Projection Years</label>
+          <select id="s_projYears" onchange="simpleAutoFill()">
+            <option value="2">2 Years</option>
+            <option value="3" selected>3 Years</option>
+            <option value="4">4 Years</option>
+            <option value="5">5 Years</option>
+            <option value="6">6 Years</option>
+            <option value="7">7 Years</option>
+          </select>
+        </div>
+        <div class="field" id="s_tenureWrap" style="display:none">
+          <label>Repayment Tenure (Years)</label>
+          <input id="s_tenure" type="number" value="5" min="1" max="10" oninput="simpleAutoFill()"/>
+        </div>
+        <div class="field gf"><label>Business Address</label><input id="s_address" placeholder="Full business address"/></div>
+      </div>
+
+      <div class="sep">Auto-Derived Figures <span class="abadge">✓ Editable — auto-set from loan amount</span></div>
+      <div class="g4">
+        <div class="field">
+          <label class="gold">Yr 1 Annual Sales / Turnover ₹</label>
+          <div class="pfx"><span>₹</span><input id="s_sales" type="number" oninput="onSimpleSalesEdit()"/></div>
+          <span class="helper" id="s_salesNote">Auto: 5× loan amount</span>
+        </div>
+        <div class="field">
+          <label class="gold">Proprietor Capital ₹</label>
+          <div class="pfx"><span>₹</span><input id="s_capital" type="number" oninput="simpleAutoFill()"/></div>
+          <span class="helper">Auto-set from business profile</span>
+        </div>
+        <div class="field">
+          <label class="gold">Annual Drawings ₹</label>
+          <div class="pfx"><span>₹</span><input id="s_drawings" type="number" oninput="simpleAutoFill()"/></div>
+          <span class="helper">Auto-set from business profile</span>
+        </div>
+        <div class="field">
+          <label class="gold">Gross Fixed Assets ₹</label>
+          <div class="pfx"><span>₹</span><input id="s_grossFA" type="number" oninput="simpleAutoFill()"/></div>
+          <span class="helper">Auto-set from business profile</span>
+        </div>
+      </div>
+
+      <div class="pvbox">
+        <div class="pvtitle">⚡ Live Preview — Year 1 Key Figures</div>
+        <div class="pvgrid" id="s_pvgrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       DETAILED MODE
+  ══════════════════════════════════════════ -->
+  <div id="detailedPane" style="display:none">
+    <div class="card">
+      <!-- Sub-tabs -->
+      <div class="sub-tabs">
+        <button class="sub-tab on" id="dtab1" onclick="dTab(1)">Applicant & Loan</button>
+        <button class="sub-tab" id="dtab2" onclick="dTab(2)">P&amp;L Inputs</button>
+        <button class="sub-tab" id="dtab3" onclick="dTab(3)">Balance Sheet</button>
+        <button class="sub-tab" id="dtab4" onclick="dTab(4)">WC &amp; Assumptions</button>
+      </div>
+
+      <!-- D-TAB 1: Applicant -->
+      <div id="dtab1c">
+        <div class="ctitle">Applicant & Loan Details</div>
+        <div class="g4">
+          <div class="field"><label>Business / Firm Name</label><input id="d_bizName" placeholder="Firm name"/></div>
+          <div class="field"><label>Proprietor / Partner Name</label><input id="d_propName"/></div>
+          <div class="field"><label>PAN</label><input id="d_pan" maxlength="10"/></div>
+          <div class="field"><label>Prepared By (CA / Firm)</label><input id="d_preparedBy"/></div>
+          <div class="field">
+            <label>★ Loan Amount (₹)</label>
+            <div class="pfx"><span>₹</span><input id="d_loan" type="number" value="500000" oninput="detailedPreview()"/></div>
+          </div>
+          <div class="field">
+            <label>Interest Rate (% p.a.)</label>
+            <div class="sfx"><span>%</span><input id="d_intRate" type="number" value="11.5" step=".25"/></div>
+          </div>
+          <div class="field">
+            <label>Base Financial Year</label>
+            <select id="d_baseYear">
+              <option value="2025">FY 2024-25</option>
+              <option value="2026" selected>FY 2025-26</option>
+              <option value="2027">FY 2026-27</option>
+              <option value="2028">FY 2027-28</option>
+              <option value="2029">FY 2028-29</option>
+              <option value="2030">FY 2029-30</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Projection Years</label>
+            <select id="d_projYears">
+              <option value="2">2 Years</option>
+              <option value="3" selected>3 Years</option>
+              <option value="4">4 Years</option>
+              <option value="5">5 Years</option>
+              <option value="6">6 Years</option>
+              <option value="7">7 Years</option>
+            </select>
+          </div>
+          <div class="field" id="d_tenureWrap" style="display:none">
+            <label>Repayment Tenure (Years)</label>
+            <input id="d_tenure" type="number" value="5" min="1" max="10"/>
+          </div>
+          <div class="field gf"><label>Business Address</label><input id="d_address"/></div>
+        </div>
+      </div>
+
+      <!-- D-TAB 2: P&L -->
+      <div id="dtab2c" style="display:none">
+        <div class="ctitle">Revenue & Expenditure — Base Year Actuals</div>
+        <div class="sep">Revenue</div>
+        <div class="g4">
+          <div class="field"><label>Sales / Turnover (₹)</label><div class="pfx"><span>₹</span><input id="d_sales" type="number" value="2500000" oninput="detailedPreview()"/></div></div>
+          <div class="field"><label>Other Income (₹)</label><div class="pfx"><span>₹</span><input id="d_otherInc" type="number" value="0"/></div></div>
+          <div class="field"><label>Opening Stock (₹)</label><div class="pfx"><span>₹</span><input id="d_openStock" type="number" value="0"/></div></div>
+          <div class="field"><label>Closing Stock (₹)</label><div class="pfx"><span>₹</span><input id="d_closeStock" type="number" value="200000"/></div></div>
+          <div class="field"><label>Purchases / Direct Cost (₹)</label><div class="pfx"><span>₹</span><input id="d_purchases" type="number" value="2000000"/></div></div>
+        </div>
+        <div class="sep">Growth Rates</div>
+        <div class="g4">
+          <div class="field"><label>Revenue Growth (% p.a.)</label><div class="sfx"><span>%</span><input id="d_revG" type="number" value="15" step=".5"/></div></div>
+          <div class="field"><label>Purchase Growth (% p.a.)</label><div class="sfx"><span>%</span><input id="d_purG" type="number" value="13" step=".5"/></div></div>
+          <div class="field"><label>Expense Growth (% p.a.)</label><div class="sfx"><span>%</span><input id="d_expG" type="number" value="8" step=".5"/></div></div>
+          <div class="field"><label>Depreciation Rate (% WDV)</label><div class="sfx"><span>%</span><input id="d_depnRate" type="number" value="15" step="1"/></div></div>
+        </div>
+        <div class="sep">Indirect Expenses — Base Year (₹)</div>
+        <table class="etbl">
+          <thead><tr><th style="width:40%">Expense Head</th><th>Base Year (₹)</th><th>Growth % (blank = default)</th></tr></thead>
+          <tbody id="d_expTbody"></tbody>
+        </table>
+      </div>
+
+      <!-- D-TAB 3: Balance Sheet -->
+      <div id="dtab3c" style="display:none">
+        <div class="ctitle">Balance Sheet — Base Year Opening Balances</div>
+        <div class="sep">Liabilities</div>
+        <div class="g4">
+          <div class="field"><label>Proprietor Capital (₹)</label><div class="pfx"><span>₹</span><input id="d_capital" type="number" value="800000"/></div></div>
+          <div class="field"><label>Unsecured Loans (₹)</label><div class="pfx"><span>₹</span><input id="d_unsecured" type="number" value="0"/></div></div>
+          <div class="field"><label>Sundry Creditors (₹)</label><div class="pfx"><span>₹</span><input id="d_creditors" type="number" value="200000"/></div></div>
+          <div class="field"><label>Other Current Liabilities (₹)</label><div class="pfx"><span>₹</span><input id="d_otherCL" type="number" value="50000"/></div></div>
+        </div>
+        <div class="sep">Assets</div>
+        <div class="g4">
+          <div class="field"><label>Gross Fixed Assets (₹)</label><div class="pfx"><span>₹</span><input id="d_grossFA" type="number" value="300000"/></div></div>
+          <div class="field"><label>Accumulated Depreciation (₹)</label><div class="pfx"><span>₹</span><input id="d_accDepn" type="number" value="0"/></div></div>
+          <div class="field"><label>Sundry Debtors (₹)</label><div class="pfx"><span>₹</span><input id="d_debtors" type="number" value="250000"/></div></div>
+          <div class="field"><label>Inventory / Stock (₹)</label><div class="pfx"><span>₹</span><input id="d_inventory" type="number" value="200000"/></div></div>
+          <div class="field"><label>Cash & Bank (₹)</label><div class="pfx"><span>₹</span><input id="d_cash" type="number" value="100000"/></div></div>
+          <div class="field"><label>Loans & Advances (₹)</label><div class="pfx"><span>₹</span><input id="d_loansAdv" type="number" value="0"/></div></div>
+          <div class="field"><label>Deposits (₹)</label><div class="pfx"><span>₹</span><input id="d_deposits" type="number" value="0"/></div></div>
+          <div class="field"><label>Capex per Year (₹)</label><div class="pfx"><span>₹</span><input id="d_capex" type="number" value="0"/></div></div>
+        </div>
+      </div>
+
+      <!-- D-TAB 4: WC & Assumptions -->
+      <div id="dtab4c" style="display:none">
+        <div class="ctitle">Working Capital Parameters & Assumptions</div>
+        <div class="sep">Working Capital Cycle</div>
+        <div class="g4">
+          <div class="field"><label>Debtor Days</label><input id="d_debtorDays" type="number" value="30"/></div>
+          <div class="field"><label>Creditor Days</label><input id="d_credDays" type="number" value="45"/></div>
+          <div class="field"><label>Stock Holding (Months)</label><input id="d_stockMonths" type="number" value="2" step=".5"/></div>
+          <div class="field"><label>WC Margin % (NWC contribution)</label><div class="sfx"><span>%</span><input id="d_wcMargin" type="number" value="25"/></div></div>
+        </div>
+        <div class="sep">Annual Figures</div>
+        <div class="g4">
+          <div class="field"><label>Annual Drawings (₹)</label><div class="pfx"><span>₹</span><input id="d_drawings" type="number" value="120000"/></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Preview -->
+    <div class="card">
+      <div class="pvbox" style="margin-top:0">
+        <div class="pvtitle">⚡ Detailed Mode Preview</div>
+        <div class="pvgrid" id="d_pvgrid"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /inputSection -->
+
+<!-- OUTPUT -->
+<div class="wrap" id="outputWrap" style="padding-top:0">
+  <div id="output"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// BUSINESS PROFILES — realistic Indian SME benchmarks
+// ═══════════════════════════════════════════════════════════
+var PROFILES = {
+  trading:{
+    purchaseRatio:.80, stockMonths:1.5, debtorDays:30, creditorDays:45,
+    indExpRatio:.08, depnRate:.15, revGrowth:.15, purGrowth:.13, expGrowth:.08,
+    capitalMult:1.5, grossFAMult:.5, drawingsMult:.20, wcMargin:25,
+    exp:{salary:.30,rent:.18,power:.04,freight:.10,travel:.05,telephone:.03,sadar:.08,office:.06,welfare:.04,misc:.12}
+  },
+  service:{
+    purchaseRatio:.20, stockMonths:.5, debtorDays:45, creditorDays:20,
+    indExpRatio:.45, depnRate:.15, revGrowth:.18, purGrowth:.12, expGrowth:.10,
+    capitalMult:1.2, grossFAMult:.4, drawingsMult:.25, wcMargin:25,
+    exp:{salary:.55,rent:.12,power:.03,freight:.01,travel:.08,telephone:.04,sadar:.04,office:.05,welfare:.04,misc:.04}
+  },
+  manufacturing:{
+    purchaseRatio:.58, stockMonths:2.5, debtorDays:45, creditorDays:45,
+    indExpRatio:.14, depnRate:.15, revGrowth:.15, purGrowth:.13, expGrowth:.08,
+    capitalMult:1.8, grossFAMult:1.0, drawingsMult:.18, wcMargin:25,
+    exp:{salary:.35,rent:.10,power:.14,freight:.08,travel:.04,telephone:.02,sadar:.06,office:.04,welfare:.06,misc:.11}
+  },
+  construction:{
+    purchaseRatio:.65, stockMonths:1.0, debtorDays:60, creditorDays:45,
+    indExpRatio:.12, depnRate:.15, revGrowth:.15, purGrowth:.13, expGrowth:.08,
+    capitalMult:1.6, grossFAMult:.8, drawingsMult:.20, wcMargin:25,
+    exp:{salary:.40,rent:.08,power:.08,freight:.10,travel:.06,telephone:.02,sadar:.06,office:.04,welfare:.06,misc:.10}
+  }
+};
+
+var EHEADS=[
+  {k:'salary',l:'Salaries & Wages'},{k:'rent',l:'Rent & Rates'},
+  {k:'power',l:'Power & Fuel'},{k:'freight',l:'Freight / Carriage'},
+  {k:'travel',l:'Travelling & Conveyance'},{k:'telephone',l:'Telephone / Internet'},
+  {k:'sadar',l:'Sadar / Local Expenses'},{k:'office',l:'Office / Shop Expenses'},
+  {k:'welfare',l:'Staff Welfare'},{k:'misc',l:'Miscellaneous Expenses'},
+];
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+var loanType='CC', bizType='trading', wcMethod='turnover', inputMode='simple';
+var simpleSalesOverride=false;
+
+// ═══════════════════════════════════════════════════════════
+// FORMATTERS
+// ═══════════════════════════════════════════════════════════
+function fmt(n){
+  if(n===null||n===undefined||isNaN(n))return '—';
+  return new Intl.NumberFormat('en-IN').format(Math.round(n));
+}
+function fmtR(n,d){
+  d=(d==null)?2:d;
+  if(isNaN(n)||!isFinite(n))return '—';
+  return Number(n).toFixed(d);
+}
+function r(n){return Math.round(n);}
+
+// ═══════════════════════════════════════════════════════════
+// MODE / TYPE TOGGLES
+// ═══════════════════════════════════════════════════════════
+function setMode(m){
+  inputMode=m;
+  document.getElementById('modeSimple').classList.toggle('on',m==='simple');
+  document.getElementById('modeDetailed').classList.toggle('on',m==='detailed');
+  document.getElementById('simplePane').style.display=m==='simple'?'':'none';
+  document.getElementById('detailedPane').style.display=m==='detailed'?'':'none';
+}
+function setLT(t){
+  loanType=t;
+  document.getElementById('ltCC').classList.toggle('on',t==='CC');
+  document.getElementById('ltTL').classList.toggle('on',t==='TL');
+  ['s_tenureWrap','d_tenureWrap'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.style.display=t==='TL'?'':'none';
+  });
+  if(inputMode==='simple') simpleAutoFill(); else detailedPreview();
+}
+function setBT(b){
+  bizType=b;
+  simpleSalesOverride=false;
+  ['T','S','M','C'].forEach(function(x,i){
+    document.getElementById('bt'+x).classList.toggle('on',['trading','service','manufacturing','construction'][i]===b);
+  });
+  if(inputMode==='simple') simpleAutoFill(); else detailedPreview();
+}
+function setWM(w){
+  wcMethod=w;
+  document.getElementById('wmT').classList.toggle('on',w==='turnover');
+  document.getElementById('wmM').classList.toggle('on',w==='mpbf');
+  document.getElementById('wmO').classList.toggle('on',w==='opercycle');
+  if(inputMode==='simple') simpleAutoFill(); else detailedPreview();
+}
+function dTab(n){
+  [1,2,3,4].forEach(function(i){
+    document.getElementById('dtab'+i+'c').style.display=i===n?'':'none';
+    document.getElementById('dtab'+i).classList.toggle('on',i===n);
+  });
+}
+function resetAll(){
+  document.getElementById('output').innerHTML='';
+  simpleSalesOverride=false;
+  simpleAutoFill();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ═══════════════════════════════════════════════════════════
+// SIMPLE MODE — AUTO FILL
+// ═══════════════════════════════════════════════════════════
+function simpleAutoFill(){
+  var loan=parseFloat(document.getElementById('s_loan').value)||500000;
+  var p=PROFILES[bizType];
+  if(!simpleSalesOverride){
+    document.getElementById('s_sales').value=r(loan*5);
+    document.getElementById('s_salesNote').textContent='Auto: 5× loan amount';
+  }
+  document.getElementById('s_capital').value=r(loan*p.capitalMult);
+  document.getElementById('s_drawings').value=r(loan*p.drawingsMult);
+  document.getElementById('s_grossFA').value=r(loan*p.grossFAMult);
+  renderSimplePreview();
+}
+function onSimpleSalesEdit(){
+  simpleSalesOverride=true;
+  document.getElementById('s_salesNote').textContent='Manually entered';
+  renderSimplePreview();
+}
+function renderSimplePreview(){
+  var loan=parseFloat(document.getElementById('s_loan').value)||500000;
+  var sales=parseFloat(document.getElementById('s_sales').value)||loan*5;
+  var p=PROFILES[bizType];
+  var purch=r(sales*p.purchaseRatio);
+  var closeSt=r((purch/12)*p.stockMonths);
+  var indExp=r(sales*p.indExpRatio);
+  var grossFA=parseFloat(document.getElementById('s_grossFA').value)||r(loan*p.grossFAMult);
+  var depn=r(grossFA*p.depnRate);
+  var intR=parseFloat(document.getElementById('s_intRate').value)||11.5;
+  var int_=r(loan*intR/100);
+  var gp=(sales+closeSt)-(0+purch+indExp);
+  var np=gp-depn-int_;
+  var npPct=sales>0?(np/sales*100):0;
+  var gpPct=sales>0?(gp/sales*100):0;
+  var turnLmt=r(sales*.20);
+  var opCycle=p.debtorDays+(p.stockMonths*30)-p.creditorDays;
+  var operLmt=r((sales/365)*opCycle*(1-p.wcMargin/100));
+  var debtors=r((sales/365)*p.debtorDays);
+  var creditors=r((purch/365)*p.creditorDays);
+  var wcGap=closeSt+debtors-creditors;
+  var mpbf=r(wcGap*(1-p.wcMargin/100));
+  var justLmt=wcMethod==='turnover'?turnLmt:wcMethod==='mpbf'?mpbf:operLmt;
+  var ok=loan<=justLmt;
+  var g=document.getElementById('s_pvgrid');
+  if(!g)return;
+  g.innerHTML=[
+    {l:'Yr 1 Sales',v:'₹ '+fmt(sales),c:''},
+    {l:'Gross Profit',v:'₹ '+fmt(gp)+' ('+fmtR(gpPct,1)+'%)',c:gp>0?'ok':'bad'},
+    {l:'Net Profit',v:'₹ '+fmt(np),c:np>0?'ok':'bad'},
+    {l:'NP Margin',v:fmtR(npPct,1)+'%',c:npPct>7?'ok':npPct>3?'warn':'bad'},
+    {l:'Justified Limit',v:'₹ '+fmt(justLmt),c:ok?'ok':'warn'},
+    {l:'Assessment',v:ok?'✅ Justified':'⚠️ Review',c:ok?'ok':'warn'},
+  ].map(function(x){return '<div class="pvitem"><div class="pvl">'+x.l+'</div><div class="pvv '+x.c+'">'+x.v+'</div></div>';}).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// DETAILED MODE INIT & PREVIEW
+// ═══════════════════════════════════════════════════════════
+function buildExpTable(){
+  var p=PROFILES[bizType];
+  var tb=document.getElementById('d_expTbody');
+  if(!tb)return;
+  tb.innerHTML='';
+  EHEADS.forEach(function(e){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+e.l+'</td>'
+      +'<td><div class="pfx"><span>₹</span><input type="number" id="de_'+e.k+'" value="0" oninput="detailedPreview()"/></div></td>'
+      +'<td><div class="sfx"><span>%</span><input type="number" id="deg_'+e.k+'" placeholder="default" /></div></td>';
+    tb.appendChild(tr);
+  });
+}
+function detailedPreview(){
+  var loan=parseFloat(document.getElementById('d_loan').value)||500000;
+  var sales=parseFloat(document.getElementById('d_sales').value)||0;
+  var purch=parseFloat(document.getElementById('d_purchases').value)||0;
+  var closeStock=parseFloat(document.getElementById('d_closeStock').value)||0;
+  var openStock=parseFloat(document.getElementById('d_openStock').value)||0;
+  var indExpTotal=0;
+  EHEADS.forEach(function(e){var el=document.getElementById('de_'+e.k);if(el)indExpTotal+=parseFloat(el.value)||0;});
+  var grossFA=parseFloat(document.getElementById('d_grossFA').value)||0;
+  var depnRate=parseFloat(document.getElementById('d_depnRate').value)||15;
+  var depn=r(grossFA*depnRate/100);
+  var intR=parseFloat(document.getElementById('d_intRate').value)||11.5;
+  var int_=r(loan*intR/100);
+  var totalCosts=(openStock+purch+indExpTotal)-closeStock;
+  var gp=sales-totalCosts;
+  var np=gp-depn-int_;
+  var npPct=sales>0?(np/sales*100):0;
+  var gpPct=sales>0?(gp/sales*100):0;
+  var turnLmt=r(sales*.20);
+  var ok=loan<=turnLmt;
+  var g=document.getElementById('d_pvgrid');
+  if(!g)return;
+  g.innerHTML=[
+    {l:'Sales',v:'₹ '+fmt(sales),c:''},
+    {l:'Gross Profit',v:'₹ '+fmt(gp)+' ('+fmtR(gpPct,1)+'%)',c:gp>0?'ok':'bad'},
+    {l:'Net Profit',v:'₹ '+fmt(np),c:np>0?'ok':'bad'},
+    {l:'NP Margin',v:fmtR(npPct,1)+'%',c:npPct>7?'ok':npPct>3?'warn':'bad'},
+    {l:'Turnover Limit',v:'₹ '+fmt(turnLmt),c:ok?'ok':'warn'},
+    {l:'Assessment',v:ok?'✅ OK':'⚠️ Review',c:ok?'ok':'warn'},
+  ].map(function(x){return '<div class="pvitem"><div class="pvl">'+x.l+'</div><div class="pvv '+x.c+'">'+x.v+'</div></div>';}).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// READ ALL INPUTS → G (unified input object)
+// ═══════════════════════════════════════════════════════════
+function readG(){
+  var G={};
+  var p=PROFILES[bizType];
+  G.bizType=bizType;
+
+  if(inputMode==='simple'){
+    var loan=parseFloat(document.getElementById('s_loan').value)||500000;
+    var sales=parseFloat(document.getElementById('s_sales').value)||r(loan*5);
+    var grossFA=parseFloat(document.getElementById('s_grossFA').value)||r(loan*p.grossFAMult);
+    G.bizName=document.getElementById('s_bizName').value||'Applicant';
+    G.propName=document.getElementById('s_propName').value||'Proprietor';
+    G.pan=(document.getElementById('s_pan').value||'').toUpperCase();
+    G.address=document.getElementById('s_address').value||'';
+    G.prepBy=document.getElementById('s_preparedBy').value||'';
+    G.baseYear=parseInt(document.getElementById('s_baseYear').value);
+    G.N=parseInt(document.getElementById('s_projYears').value);
+    G.loan=loan;
+    G.intRate=parseFloat(document.getElementById('s_intRate').value)||11.5;
+    G.tenure=parseInt(document.getElementById('s_tenure').value)||5;
+    G.sales0=sales;
+    G.purchases0=r(sales*p.purchaseRatio);
+    G.openStock0=0;
+    G.closeStock0=r((G.purchases0/12)*p.stockMonths);
+    G.otherInc=0;
+    G.revG=p.revGrowth; G.purG=p.purGrowth; G.expG=p.expGrowth;
+    G.depnRate=p.depnRate;
+    G.capital0=parseFloat(document.getElementById('s_capital').value)||r(loan*p.capitalMult);
+    G.drawings=parseFloat(document.getElementById('s_drawings').value)||r(loan*p.drawingsMult);
+    G.grossFA0=grossFA;
+    G.accDepn0=0;
+    G.unsecured=0;
+    G.debtors0=r((sales/365)*p.debtorDays);
+    G.inventory0=G.closeStock0;
+    G.creditors0=r((G.purchases0/365)*p.creditorDays);
+    G.cash0=r(sales*0.012);
+    G.loansAdv0=r(loan*0.04);
+    G.deposits0=0;
+    G.otherCL0=r(loan*0.05);
+    G.debtorDays=p.debtorDays;
+    G.creditorDays=p.creditorDays;
+    G.stockMonths=p.stockMonths;
+    G.wcMargin=p.wcMargin;
+    G.capex=0;
+    G.expBase={};
+    var indExpTotal=r(sales*p.indExpRatio);
+    EHEADS.forEach(function(e){G.expBase[e.k]=r(indExpTotal*p.exp[e.k]);});
+    G.expGrowths={};
+    EHEADS.forEach(function(e){G.expGrowths[e.k]=p.expGrowth;});
+  } else {
+    // DETAILED MODE
+    var loan=parseFloat(document.getElementById('d_loan').value)||500000;
+    G.bizName=document.getElementById('d_bizName').value||'Applicant';
+    G.propName=document.getElementById('d_propName').value||'Proprietor';
+    G.pan=(document.getElementById('d_pan').value||'').toUpperCase();
+    G.address=document.getElementById('d_address').value||'';
+    G.prepBy=document.getElementById('d_preparedBy').value||'';
+    G.baseYear=parseInt(document.getElementById('d_baseYear').value);
+    G.N=parseInt(document.getElementById('d_projYears').value);
+    G.loan=loan;
+    G.intRate=parseFloat(document.getElementById('d_intRate').value)||11.5;
+    G.tenure=parseInt(document.getElementById('d_tenure').value)||5;
+    G.sales0=parseFloat(document.getElementById('d_sales').value)||0;
+    G.purchases0=parseFloat(document.getElementById('d_purchases').value)||0;
+    G.openStock0=parseFloat(document.getElementById('d_openStock').value)||0;
+    G.closeStock0=parseFloat(document.getElementById('d_closeStock').value)||0;
+    G.otherInc=parseFloat(document.getElementById('d_otherInc').value)||0;
+    G.revG=parseFloat(document.getElementById('d_revG').value)/100||.15;
+    G.purG=parseFloat(document.getElementById('d_purG').value)/100||.13;
+    G.expG=parseFloat(document.getElementById('d_expG').value)/100||.08;
+    G.depnRate=parseFloat(document.getElementById('d_depnRate').value)/100||.15;
+    G.capital0=parseFloat(document.getElementById('d_capital').value)||0;
+    G.drawings=parseFloat(document.getElementById('d_drawings').value)||0;
+    G.grossFA0=parseFloat(document.getElementById('d_grossFA').value)||0;
+    G.accDepn0=parseFloat(document.getElementById('d_accDepn').value)||0;
+    G.unsecured=parseFloat(document.getElementById('d_unsecured').value)||0;
+    G.debtors0=parseFloat(document.getElementById('d_debtors').value)||0;
+    G.inventory0=parseFloat(document.getElementById('d_inventory').value)||0;
+    G.creditors0=parseFloat(document.getElementById('d_creditors').value)||0;
+    G.cash0=parseFloat(document.getElementById('d_cash').value)||0;
+    G.loansAdv0=parseFloat(document.getElementById('d_loansAdv').value)||0;
+    G.deposits0=parseFloat(document.getElementById('d_deposits').value)||0;
+    G.otherCL0=parseFloat(document.getElementById('d_otherCL').value)||0;
+    G.debtorDays=parseFloat(document.getElementById('d_debtorDays').value)||30;
+    G.creditorDays=parseFloat(document.getElementById('d_credDays').value)||45;
+    G.stockMonths=parseFloat(document.getElementById('d_stockMonths').value)||2;
+    G.wcMargin=parseFloat(document.getElementById('d_wcMargin').value)||25;
+    G.capex=parseFloat(document.getElementById('d_capex').value)||0;
+    G.expBase={};
+    EHEADS.forEach(function(e){G.expBase[e.k]=parseFloat(document.getElementById('de_'+e.k).value)||0;});
+    G.expGrowths={};
+    EHEADS.forEach(function(e){
+      var v=document.getElementById('deg_'+e.k).value;
+      G.expGrowths[e.k]=v!==''?parseFloat(v)/100:G.expG;
+    });
+  }
+  return G;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROJECTION ENGINE — Balanced BS by plug-cash method
+// ═══════════════════════════════════════════════════════════
+function project(G){
+  var p=PROFILES[G.bizType];
+  var D=[];
+  var sales=G.sales0, purch=G.purchases0;
+  var openSt=G.openStock0;
+  var grossFA=G.grossFA0, accDepn=G.accDepn0, wdv=G.grossFA0-G.accDepn0;
+  var loanBal=G.loan;
+  var tlRepay=loanType==='TL'?r(G.loan/G.tenure):0;
+  var capital=G.capital0;
+  var expCur={};
+  EHEADS.forEach(function(e){expCur[e.k]=G.expBase[e.k];});
+
+  // Seed BS (prior year) for cash flow deltas
+  var prevDebtors=G.debtors0, prevStock=G.inventory0;
+  var prevCreditors=G.creditors0, prevOtherCL=G.otherCL0, prevCash=G.cash0;
+
+  for(var i=0;i<G.N;i++){
+    if(i>0){
+      sales=r(sales*(1+G.revG));
+      purch=r(purch*(1+G.purG));
+      EHEADS.forEach(function(e){expCur[e.k]=r(expCur[e.k]*(1+(G.expGrowths[e.k]||G.expG)));});
+    } else {
+      sales=r(sales); purch=r(purch);
+    }
+
+    var closeSt=r((purch/12)*G.stockMonths);
+
+    var indExpTotal=0;
+    var expSnap=[];
+    EHEADS.forEach(function(e){
+      var v=r(expCur[e.k]);
+      indExpTotal+=v;
+      expSnap.push({k:e.k,l:e.l,v:v});
+    });
+
+    var totalCosts=(openSt+purch+indExpTotal)-closeSt;
+    var grossProfit=sales-totalCosts;
+
+    // Depreciation
+    grossFA+=G.capex;
+    var depnYr=r(wdv*G.depnRate);
+    accDepn+=depnYr; wdv=Math.max(wdv-depnYr,0);
+    var netFA=Math.max(grossFA-accDepn,0);
+
+    var profitBeforeInt=grossProfit-depnYr;
+
+    // Interest (CC on full limit; TL on opening balance)
+    var openLoanBal=loanBal;
+    var interest=loanType==='CC'?r(G.loan*(G.intRate/100)):r(openLoanBal*(G.intRate/100));
+    if(loanType==='TL') loanBal=Math.max(loanBal-tlRepay,0);
+
+    var netProfit=profitBeforeInt-interest;
+
+    // Current Liabilities (non-bank)
+    var creditors=r((purch/365)*G.creditorDays);
+    var otherCL=r(G.otherCL0*Math.pow(1.05,i+1));
+    var totalCL_nb=creditors+otherCL;
+
+    // Bank balances in BS
+    var ccBal=loanType==='CC'?G.loan:0;
+    var tlBal=loanType==='TL'?loanBal:0;
+
+    // Net Worth (capital roll)
+    capital=r(capital+netProfit-G.drawings);
+    var netWorth=capital;
+
+    // TOTAL SOURCES = NW + unsecured + bank + CL_nb
+    var totalSources=netWorth+G.unsecured+ccBal+tlBal+totalCL_nb;
+
+    // Current Assets excl. cash
+    var debtors=r((sales/365)*G.debtorDays);
+    var loansAdv=r(G.loansAdv0*Math.pow(1.05,i));
+    var caExCash=closeSt+debtors+loansAdv;
+
+    // Cash is the plug: totalSources − netFA − caExCash
+    var cashBank=Math.max(totalSources-netFA-caExCash, r(sales*0.005));
+    var totalCA=caExCash+cashBank;
+    var totalBSA=netFA+totalCA;
+    var totalLiab=totalSources; // identical to totalBSA by construction
+
+    // WC Metrics
+    var wcGap=totalCA-totalCL_nb;
+    var minNWC=r(wcGap*(G.wcMargin/100));
+    var nwcPrior=i===0
+      ?(prevDebtors+prevStock+prevCash-prevCreditors-prevOtherCL)
+      :(D[i-1].totalCA-D[i-1].totalCL_nb);
+    var mpbf_m1=wcGap-minNWC;
+    var mpbf_m2=wcGap-Math.max(nwcPrior,0);
+    var mpbf=Math.min(mpbf_m1,mpbf_m2);
+    var turnLmt=r(sales*.20);
+    var opCycleDays=G.debtorDays+(G.stockMonths*30)-G.creditorDays;
+    var operLmt=r((sales/365)*opCycleDays*(1-G.wcMargin/100));
+    var justLmt=wcMethod==='turnover'?turnLmt:wcMethod==='mpbf'?mpbf:operLmt;
+    var justified=justLmt>=G.loan;
+
+    // Ratios
+    var ebitda=netProfit+depnYr+interest;
+    var totalDebt=ccBal+tlBal+G.unsecured;
+    var debtSvc=loanType==='CC'?interest:(tlRepay+interest);
+    var dscr=ebitda/Math.max(debtSvc,1);
+    var curRatio=totalCA/Math.max(totalCL_nb,1);
+    var deRatio=totalDebt/Math.max(netWorth,1);
+    var npRatio=(netProfit/sales)*100;
+    var gpRatio=(grossProfit/sales)*100;
+    var icr=ebitda/Math.max(interest,1);
+    var debtorTurnover=sales/Math.max(debtors,1);
+    var inventoryTurnover=purch/Math.max(closeSt,1);
+    var creditorTurnover=purch/Math.max(creditors,1);
+
+    // Cash Flow (indirect)
+    var cfOps=netProfit+depnYr
+      -(debtors-(i===0?prevDebtors:D[i-1].debtors))
+      -(closeSt-(i===0?prevStock:D[i-1].closeSt))
+      +(creditors-(i===0?prevCreditors:D[i-1].creditors))
+      +(otherCL-(i===0?prevOtherCL:D[i-1].otherCL));
+    var cfInv=-G.capex;
+    var cfFinLoan=loanType==='CC'?(i===0?G.loan:0):(i===0?G.loan:-tlRepay);
+    var cfFin=cfFinLoan-G.drawings;
+    var netCF=cfOps+cfInv+cfFin;
+    var openCash=i===0?prevCash:D[i-1].cashBank;
+    var closeCash=openCash+netCF;
+
+    D.push({
+      yr:i, sales:sales, openSt:openSt, purch:purch, closeSt:closeSt,
+      indExpTotal:indExpTotal, expSnap:expSnap, otherInc:G.otherInc,
+      totalCosts:totalCosts, grossProfit:grossProfit,
+      depnYr:depnYr, grossFA:grossFA, accDepn:accDepn, netFA:netFA,
+      profitBeforeInt:profitBeforeInt, interest:interest, netProfit:netProfit,
+      ebitda:ebitda, capital:capital, netWorth:netWorth,
+      unsecured:G.unsecured, ccBal:ccBal, tlBal:tlBal, tlRepay:tlRepay,
+      totalDebt:totalDebt, creditors:creditors, otherCL:otherCL,
+      totalCL_nb:totalCL_nb, debtors:debtors, loansAdv:loansAdv,
+      cashBank:cashBank, caExCash:caExCash, totalCA:totalCA,
+      totalBSA:totalBSA, totalLiab:totalLiab,
+      wcGap:wcGap, minNWC:minNWC, nwcPrior:nwcPrior,
+      mpbf_m1:mpbf_m1, mpbf_m2:mpbf_m2, mpbf:mpbf,
+      turnLmt:turnLmt, operLmt:operLmt, justLmt:justLmt, justified:justified,
+      dscr:dscr, curRatio:curRatio, deRatio:deRatio,
+      npRatio:npRatio, gpRatio:gpRatio, icr:icr,
+      debtorTurnover:debtorTurnover, inventoryTurnover:inventoryTurnover,
+      creditorTurnover:creditorTurnover,
+      cfOps:cfOps, cfInv:cfInv, cfFinLoan:cfFinLoan, cfFin:cfFin,
+      netCF:netCF, openCash:openCash, closeCash:closeCash,
+    });
+    openSt=closeSt;
+  }
+  return D;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TABLE HELPERS
+// ═══════════════════════════════════════════════════════════
+function th(yrs,first){
+  first=first||'Particulars';
+  return '<tr><th>'+first+'</th>'+yrs.map(function(y){return '<th>'+y+'</th>';}).join('')+'</tr>';
+}
+function row(lbl,vals,cls,ind){
+  cls=cls||'';ind=ind||0;
+  if(!Array.isArray(vals))vals=[];
+  var pad=ind?'style="padding-left:'+(ind*1.1+.72)+'rem"':'';
+  return '<tr class="'+cls+'"><td '+pad+'>'+lbl+'</td>'
+    +vals.map(function(v){return typeof v==='number'?'<td>'+fmt(v)+'</td>':'<td>'+(v||'—')+'</td>';}).join('')+'</tr>';
+}
+function rowR(lbl,vals,cls,d){
+  cls=cls||'';d=(d==null)?2:d;
+  if(!Array.isArray(vals))vals=[];
+  return '<tr class="'+cls+'"><td>'+lbl+'</td>'
+    +vals.map(function(v){return typeof v==='number'?'<td>'+fmtR(v,d)+'</td>':'<td>'+(v||'—')+'</td>';}).join('')+'</tr>';
+}
+function sec(lbl,n){return '<tr class="rs"><td>'+lbl+'</td>'+'<td></td>'.repeat(n)+'</tr>';}
+function blk(n){return '<tr class="rt-b"><td></td>'+'<td></td>'.repeat(n)+'</tr>';}
+function wrap(title,badge,body,note){
+  return '<div class="rcard"><div class="rhdr"><h3>'+title+'</h3>'+(badge?'<span class="rbadge">'+badge+'</span>':'')+'</div>'
+    +(note?'<div class="rnote">'+note+'</div>':'')
+    +'<div class="ts"><table class="rt">'+body+'</table></div>'
+    +'<div class="print-footer">LoanProj CMA Report · Provisional Projections · Not Audited</div>'
+    +'</div>';
+}
+function colorClass(v,goodAbove,warnAbove,invert){
+  if(invert){return v<goodAbove?'green':v<warnAbove?'gold':'red';}
+  return v>=goodAbove?'green':v>=warnAbove?'gold':'red';
+}
+function barWidth(v,max){return Math.min(100,Math.max(0,(v/max)*100));}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN GENERATE
+// ═══════════════════════════════════════════════════════════
+function generate(){
+  var G=readG();
+  var D=project(G);
+  var Ni=G.N;
+  var p=PROFILES[G.bizType];
+  var yrs=[];
+  for(var i=1;i<=Ni;i++){var fy=G.baseYear+i;yrs.push('FY '+(fy-1)+'-'+String(fy).slice(2));}
+
+  var html='';
+
+  // ── ENTITY BAR ───────────────────────────────────────────
+  html+='<div class="ebar">'
+    +'<div class="ef"><div class="efl">Firm / Business</div><div class="efv">'+G.bizName+'</div></div>'
+    +'<div class="ef"><div class="efl">Proprietor</div><div class="efv">'+G.propName+'</div></div>'
+    +(G.pan?'<div class="ef"><div class="efl">PAN</div><div class="efv" style="font-family:\'DM Mono\',monospace">'+G.pan+'</div></div>':'')
+    +'<div class="ef"><div class="efl">Loan Type</div><div class="efv">'+(loanType==='CC'?'Cash Credit / OD':'Term Loan')+'</div></div>'
+    +'<div class="ef"><div class="efl">Loan Amount</div><div class="efv">₹ '+fmt(G.loan)+'</div></div>'
+    +'<div class="ef"><div class="efl">Interest Rate</div><div class="efv">'+G.intRate+'% p.a.</div></div>'
+    +'<div class="ef"><div class="efl">Segment</div><div class="efv" style="text-transform:capitalize">'+G.bizType+'</div></div>'
+    +'<div class="ef"><div class="efl">Projection Period</div><div class="efv">'+yrs[0]+' to '+yrs[Ni-1]+'</div></div>'
+    +(G.prepBy?'<div class="ef"><div class="efl">Prepared By</div><div class="efv" style="font-size:.8rem">'+G.prepBy+'</div></div>':'')
+    +'</div>';
+
+  html+='<div class="notice">⚠️ Provisional projections prepared for bank loan appraisal only. All figures are forward-looking estimates. Not an audited or CA-certified statement.</div>';
+  html+='<div class="actrow"><button class="btn bd bsm" onclick="window.print()">🖨 Print / Export PDF</button><button class="btn bgs bsm" onclick="resetAll()">↺ New Projection</button></div>';
+
+  // ── 1. PROFIT & LOSS ─────────────────────────────────────
+  var b='<thead>'+th(yrs)+'</thead><tbody>';
+  b+=sec('I. INCOME',Ni);
+  b+=row('Sales / Turnover',D.map(function(d){return d.sales;}),'ri');
+  b+=row('Other Income',D.map(function(d){return d.otherInc;}),'ri');
+  b+=row('Total Revenue (A)',D.map(function(d){return d.sales+d.otherInc;}),'rt-tot');
+  b+=blk(Ni);
+  b+=sec('II. EXPENDITURE',Ni);
+  b+=row('Opening Stock',D.map(function(d){return d.openSt;}),'ri');
+  b+=row('Purchases / Direct Costs',D.map(function(d){return d.purch;}),'ri');
+  b+=sec('Indirect / Operating Expenses',Ni);
+  D[0].expSnap.forEach(function(e){
+    b+=row(e.l,D.map(function(d){return d.expSnap.find(function(x){return x.k===e.k;}).v;}),'ri2');
+  });
+  b+=row('Total Indirect Expenses',D.map(function(d){return d.indExpTotal;}),'ri');
+  b+=row('Less: Closing Stock',D.map(function(d){return d.closeSt;}),'ri');
+  b+=row('Total Expenditure (B)',D.map(function(d){return d.totalCosts;}),'rt-tot');
+  b+=blk(Ni);
+  b+=row('Gross Profit (A−B)',D.map(function(d){return d.grossProfit;}),'rt-p');
+  b+=rowR('  Gross Profit Ratio (%)',D.map(function(d){return d.gpRatio;}),'ri');
+  b+=row('Less: Depreciation',D.map(function(d){return d.depnYr;}),'ri');
+  b+=row('Profit before Interest & Tax',D.map(function(d){return d.profitBeforeInt;}),'rt-tot');
+  b+=row('Less: Interest on '+(loanType==='CC'?'CC / OD':'Term Loan'),D.map(function(d){return d.interest;}),'ri');
+  b+=row('Net Profit before Tax',D.map(function(d){return d.netProfit;}),'rt-p');
+  b+=rowR('  Net Profit Ratio (%)',D.map(function(d){return d.npRatio;}),'ri');
+  b+=row('Less: Income Tax Provision',D.map(function(){return 0;}),'ri');
+  b+=row('Net Profit after Tax (PAT)',D.map(function(d){return d.netProfit;}),'rt-p');
+  b+='</tbody>';
+  html+=wrap('Profit & Loss Account (Projected)','P & L',b,'Amounts in ₹. Provisional estimates.');
+
+  // ── 2. BALANCE SHEET ─────────────────────────────────────
+  b='<thead>'+th(yrs)+'</thead><tbody>';
+  b+=sec('SOURCES OF FUNDS',Ni);
+  b+=row("Proprietor's Capital & Reserves",D.map(function(d){return d.netWorth;}),'ri');
+  if(G.unsecured>0) b+=row('Unsecured Loans',D.map(function(d){return d.unsecured;}),'ri');
+  b+=row(loanType==='CC'?'Bank CC / OD':'Term Loan Outstanding',D.map(function(d){return loanType==='CC'?d.ccBal:d.tlBal;}),'ri');
+  b+=sec('Current Liabilities',Ni);
+  b+=row('Sundry Creditors (Trade)',D.map(function(d){return d.creditors;}),'ri2');
+  b+=row('Other Current Liabilities',D.map(function(d){return d.otherCL;}),'ri2');
+  b+=row('Total Current Liabilities',D.map(function(d){return d.totalCL_nb;}),'ri');
+  b+=row('TOTAL SOURCES OF FUNDS',D.map(function(d){return d.totalLiab;}),'rt-tot');
+  b+=blk(Ni);
+  b+=sec('APPLICATION OF FUNDS',Ni);
+  b+=sec('Fixed Assets',Ni);
+  b+=row('Gross Block',D.map(function(d){return d.grossFA;}),'ri2');
+  b+=row('Less: Accumulated Depreciation',D.map(function(d){return d.accDepn;}),'ri2');
+  b+=row('Net Block',D.map(function(d){return d.netFA;}),'ri');
+  b+=sec('Current Assets, Loans & Advances',Ni);
+  b+=row('a) Inventories / Closing Stock',D.map(function(d){return d.closeSt;}),'ri2');
+  b+=row('b) Sundry Debtors',D.map(function(d){return d.debtors;}),'ri2');
+  b+=row('c) Cash & Bank Balances',D.map(function(d){return d.cashBank;}),'ri2');
+  b+=row('d) Loans & Advances',D.map(function(d){return d.loansAdv;}),'ri2');
+  b+=row('Total Current Assets',D.map(function(d){return d.totalCA;}),'ri');
+  b+=row('TOTAL APPLICATION OF FUNDS',D.map(function(d){return d.totalBSA;}),'rt-tot');
+  b+='</tbody>';
+  html+=wrap('Balance Sheet (Projected)','BALANCE SHEET',b,'Assets = Liabilities by construction. Cash & Bank is derived as balancing figure. Amounts in ₹.');
+
+  // ── 3. CASH FLOW ─────────────────────────────────────────
+  b='<thead>'+th(yrs)+'</thead><tbody>';
+  b+=sec('A. CASH FLOW FROM OPERATING ACTIVITIES',Ni);
+  b+=row('Net Profit after Tax',D.map(function(d){return d.netProfit;}),'ri');
+  b+=row('Add: Depreciation (non-cash)',D.map(function(d){return d.depnYr;}),'ri');
+  b+=row('Add: Interest Charged Back',D.map(function(d){return d.interest;}),'ri');
+  b+=row('(Increase)/Decrease in Debtors',D.map(function(d,i){return i===0?0:(D[i-1].debtors-d.debtors);}),'ri2');
+  b+=row('(Increase)/Decrease in Inventory',D.map(function(d,i){return i===0?0:(D[i-1].closeSt-d.closeSt);}),'ri2');
+  b+=row('Increase/(Decrease) in Creditors',D.map(function(d,i){return i===0?0:(d.creditors-D[i-1].creditors);}),'ri2');
+  b+=row('Increase/(Decrease) in Other CL',D.map(function(d,i){return i===0?0:(d.otherCL-D[i-1].otherCL);}),'ri2');
+  b+=row('Net Cash from Operations (A)',D.map(function(d){return d.cfOps;}),'rt-tot');
+  b+=blk(Ni);
+  b+=sec('B. CASH FLOW FROM INVESTING ACTIVITIES',Ni);
+  b+=row('Purchase of Fixed Assets / Capex',D.map(function(d){return -G.capex;}),'ri');
+  b+=row('Net Cash from Investing (B)',D.map(function(d){return -G.capex;}),'rt-tot');
+  b+=blk(Ni);
+  b+=sec('C. CASH FLOW FROM FINANCING ACTIVITIES',Ni);
+  if(loanType==='CC'){
+    b+=row('CC Limit Availed (Year 1 only)',D.map(function(d,i){return i===0?G.loan:0;}),'ri');
+  } else {
+    b+=row('Term Loan Received',D.map(function(d,i){return i===0?G.loan:0;}),'ri');
+    b+=row('Repayment of Term Loan',D.map(function(d){return -d.tlRepay;}),'ri');
+  }
+  b+=row('Proprietor Drawings / Withdrawals',D.map(function(){return -G.drawings;}),'ri');
+  b+=row('Net Cash from Financing (C)',D.map(function(d){return d.cfFin;}),'rt-tot');
+  b+=blk(Ni);
+  b+=row('Net Increase/(Decrease) in Cash (A+B+C)',D.map(function(d){return d.netCF;}),'rt-tot');
+  b+=row('Opening Cash & Bank Balance',D.map(function(d){return d.openCash;}),'ri');
+  b+=row('Closing Cash & Bank Balance',D.map(function(d){return d.closeCash;}),'rt-p');
+  b+='</tbody>';
+  html+=wrap('Cash Flow Statement — Indirect Method','CASH FLOW',b,'As per AS-3 format.');
+
+  // ── 4. FORM I — LIMITS ───────────────────────────────────
+  b='<thead><tr><th>Particulars</th><th>Existing Limits</th><th>Proposed Limits</th></tr></thead><tbody>';
+  b+='<tr class="rs"><td>Fund Based Limits</td><td></td><td></td></tr>';
+  b+='<tr class="ri"><td>Cash Credit / Overdraft</td><td>—</td><td>'+fmt(loanType==='CC'?G.loan:0)+'</td></tr>';
+  b+='<tr class="ri"><td>Term Loan</td><td>—</td><td>'+fmt(loanType==='TL'?G.loan:0)+'</td></tr>';
+  b+='<tr class="rt-tot"><td>Total Fund Based</td><td>—</td><td>'+fmt(G.loan)+'</td></tr>';
+  b+='<tr class="rs"><td>Non-Fund Based Limits</td><td></td><td></td></tr>';
+  b+='<tr class="ri"><td>Letter of Credit / Bank Guarantee</td><td>—</td><td>As applicable</td></tr>';
+  b+='<tr class="rs"><td>Security Details</td><td></td><td></td></tr>';
+  b+='<tr class="ri"><td>Primary Security</td><td>—</td><td>Hypothecation of stocks & book debts</td></tr>';
+  b+='<tr class="ri"><td>Collateral Security</td><td>—</td><td>As applicable / NIL</td></tr>';
+  b+='<tr class="ri"><td>Guarantee</td><td>—</td><td>Personal guarantee of proprietor / partners</td></tr>';
+  b+='<tr class="ri"><td>Repayment Terms</td><td>—</td><td>'+(loanType==='CC'?'Repayable on demand / annual review':'EMI over '+G.tenure+' years')+'</td></tr>';
+  b+='</tbody>';
+  html+=wrap('CMA Form I — Details of Existing & Proposed Bank Limits','FORM I',b,'');
+
+  // ── 5. FORM II — OPERATING STATEMENT ─────────────────────
+  b='<thead>'+th(yrs,'Sr. Particulars')+'</thead><tbody>';
+  b+=row('1. Gross Sales / Turnover',D.map(function(d){return d.sales;}));
+  b+=rowR('2. % Growth in Net Sales',D.map(function(d,i){return i===0?null:(d.sales/D[i-1].sales-1)*100;}),'ri');
+  b+=row('3. Net Sales (after GST / excise adj.)',D.map(function(d){return d.sales;}),'rt-tot');
+  b+=blk(Ni);
+  b+=sec('4. Cost of Sales',Ni);
+  b+=row('   a) Purchases / Direct Materials',D.map(function(d){return d.purch;}),'ri2');
+  b+=row('   b) Indirect / Operating Expenses',D.map(function(d){return d.indExpTotal;}),'ri2');
+  b+=row('   c) Depreciation',D.map(function(d){return d.depnYr;}),'ri2');
+  b+=row('   d) Add: Opening Stock',D.map(function(d){return d.openSt;}),'ri2');
+  b+=row('   e) Less: Closing Stock',D.map(function(d){return d.closeSt;}),'ri2');
+  b+=row('   Total Cost of Sales',D.map(function(d){return d.totalCosts;}),'rt-tot');
+  b+=blk(Ni);
+  b+=row('5. Operating Profit before Interest',D.map(function(d){return d.profitBeforeInt;}),'rt-p');
+  b+=row('6. Less: Interest on Borrowings',D.map(function(d){return d.interest;}),'ri');
+  b+=row('7. Net Profit before Tax',D.map(function(d){return d.netProfit;}),'rt-tot');
+  b+=row('8. Provision for Taxes',D.map(function(){return 0;}),'ri');
+  b+=row('9. Net Profit after Tax (PAT)',D.map(function(d){return d.netProfit;}),'rt-p');
+  b+='</tbody>';
+  html+=wrap('CMA Form II — Operating Statement','FORM II',b,'As per RBI / Tandon Committee Format.');
+
+  // ── 6. FORM III — BALANCE SHEET ANALYSIS ─────────────────
+  b='<thead>'+th(yrs,'Sr. Particulars')+'</thead><tbody>';
+  b+=sec('CURRENT LIABILITIES',Ni);
+  b+=row('1a. CC / OD from banks',D.map(function(d){return loanType==='CC'?d.ccBal:0;}),'ri');
+  b+=row('3.  Sundry Creditors (Trade)',D.map(function(d){return d.creditors;}),'ri');
+  b+=row('9.  Other Current Liabilities & Provisions',D.map(function(d){return d.otherCL;}),'ri');
+  b+=row('10. TOTAL CURRENT LIABILITIES (TCL)',D.map(function(d){return (loanType==='CC'?d.ccBal:0)+d.totalCL_nb;}),'rt-tot');
+  b+=sec('TERM LIABILITIES',Ni);
+  b+=row('13. Term Loan(s) from Banks',D.map(function(d){return loanType==='TL'?d.tlBal:0;}),'ri');
+  b+=row('15. Unsecured Loans from Promoters',D.map(function(d){return d.unsecured;}),'ri');
+  b+=row('17. Total Term Liabilities (TTL)',D.map(function(d){return (loanType==='TL'?d.tlBal:0)+d.unsecured;}),'rt-tot');
+  b+=row('18. Total Outside Liabilities (TCL+TTL)',D.map(function(d){return d.totalDebt+d.totalCL_nb;}),'rt-tot');
+  b+=sec('NET WORTH',Ni);
+  b+=row("19. Proprietor's Capital",D.map(function(d){return d.netWorth;}),'ri');
+  b+=row('24. NET WORTH',D.map(function(d){return d.netWorth;}),'rt-tot');
+  b+=row('25. TOTAL LIABILITIES (18+24)',D.map(function(d){return d.totalLiab;}),'rt-p');
+  b+=blk(Ni);
+  b+=sec('CURRENT ASSETS',Ni);
+  b+=row('26. Cash & Bank Balances',D.map(function(d){return d.cashBank;}),'ri');
+  b+=row('28. Sundry Debtors / Receivables',D.map(function(d){return d.debtors;}),'ri');
+  b+=row('30. Inventories / Closing Stock',D.map(function(d){return d.closeSt;}),'ri');
+  b+=row('31. Loans & Advances',D.map(function(d){return d.loansAdv;}),'ri');
+  b+=row('34. TOTAL CURRENT ASSETS (TCA)',D.map(function(d){return d.totalCA;}),'rt-tot');
+  b+=sec('FIXED ASSETS',Ni);
+  b+=row('35. Gross Block',D.map(function(d){return d.grossFA;}),'ri');
+  b+=row('36. Less: Accumulated Depreciation',D.map(function(d){return d.accDepn;}),'ri');
+  b+=row('37. Net Block',D.map(function(d){return d.netFA;}),'rt-tot');
+  b+=row('43. TOTAL ASSETS (34+37)',D.map(function(d){return d.totalBSA;}),'rt-p');
+  b+=row('44. Tangible Net Worth',D.map(function(d){return d.netWorth;}),'rt-tot');
+  b+=row('45. Net Working Capital (NWC)',D.map(function(d){return d.totalCA-(loanType==='CC'?d.ccBal:0)-d.totalCL_nb;}),'rt-tot');
+  b+='</tbody>';
+  html+=wrap('CMA Form III — Analysis of Balance Sheet','FORM III',b,'As per RBI / Tandon Committee Format.');
+
+  // ── 7. FORM IV — COMPARATIVE CA & CL ─────────────────────
+  b='<thead>'+th(yrs,'Sr. Particulars')+'</thead><tbody>';
+  b+=sec('A. CURRENT ASSETS',Ni);
+  b+=row('1. Raw Material / WIP Stock',D.map(function(){return 0;}),'ri');
+  b+=row('2. Finished Goods / Closing Stock',D.map(function(d){return d.closeSt;}),'ri');
+  b+=rowR('   Holding period (months of purchases)',D.map(function(d){return d.closeSt/(d.purch/12);}),'ri2');
+  b+=row('3. Receivables / Sundry Debtors',D.map(function(d){return d.debtors;}),'ri');
+  b+=rowR('   Collection period (days of sales)',D.map(function(d){return d.debtors/(d.sales/365);}),'ri2');
+  b+=row('4. Advances to Suppliers',D.map(function(d){return d.loansAdv;}),'ri');
+  b+=row('5. Cash & Bank Balances',D.map(function(d){return d.cashBank;}),'ri');
+  b+=row('9. TOTAL CURRENT ASSETS',D.map(function(d){return d.totalCA;}),'rt-tot');
+  b+=blk(Ni);
+  b+=sec('B. CURRENT LIABILITIES (excl. bank WC borrowing)',Ni);
+  b+=row('10. Sundry Creditors (Trade Payables)',D.map(function(d){return d.creditors;}),'ri');
+  b+=rowR('    Payment period (days of purchases)',D.map(function(d){return d.creditors/(d.purch/365);}),'ri2');
+  b+=row('13. Other Current Liabilities',D.map(function(d){return d.otherCL;}),'ri');
+  b+=row('14. TOTAL CURRENT LIABILITIES (non-bank)',D.map(function(d){return d.totalCL_nb;}),'rt-tot');
+  b+='</tbody>';
+  html+=wrap('CMA Form IV — Comparative Statement of Current Assets & Liabilities','FORM IV',b,'');
+
+  // ── 8. FORM V — MPBF ─────────────────────────────────────
+  var wcLabel={turnover:'Turnover Method',mpbf:'MPBF',opercycle:'Operating Cycle'};
+  b='<thead>'+th(yrs,'Sr. Particulars')+'</thead><tbody>';
+  b+=row('1. Total Current Assets (Form IV Item 9)',D.map(function(d){return d.totalCA;}));
+  b+=row('2. Current Liabilities excl. bank WC (Form IV Item 14)',D.map(function(d){return d.totalCL_nb;}),'ri');
+  b+=row('3. Working Capital Gap (1−2)',D.map(function(d){return d.wcGap;}),'rt-tot');
+  b+=blk(Ni);
+  b+=row('4. Min. Stipulated NWC ('+G.wcMargin+'% of WCG)',D.map(function(d){return d.minNWC;}),'ri');
+  b+=row('5. Actual NWC (pre-sanction / prior year)',D.map(function(d){return Math.max(d.nwcPrior,0);}),'ri');
+  b+=blk(Ni);
+  b+=row('6. MPBF — Method I (3−4)',D.map(function(d){return d.mpbf_m1;}),wcMethod==='mpbf'?'rt-p':'rt-hl');
+  b+=row('7. MPBF — Method II (3−5)',D.map(function(d){return d.mpbf_m2;}),wcMethod==='mpbf'?'rt-p':'rt-hl');
+  b+=row('8. Max Permissible Finance (lower of 6 & 7)',D.map(function(d){return Math.min(d.mpbf_m1,d.mpbf_m2);}),wcMethod==='mpbf'?'rt-p':'rt-hl');
+  b+=blk(Ni);
+  b+=row('Turnover Method (20% of Net Sales)',D.map(function(d){return d.turnLmt;}),wcMethod==='turnover'?'rt-p':'rt-hl');
+  b+=row('Operating Cycle Method',D.map(function(d){return d.operLmt;}),wcMethod==='opercycle'?'rt-p':'rt-hl');
+  b+=blk(Ni);
+  b+=row('▶ Active Method: '+wcLabel[wcMethod],D.map(function(d){return d.justLmt;}),'rt-p');
+  b+=row('Loan Amount Applied For',D.map(function(){return G.loan;}),'ri');
+  b+=row('Assessment',D.map(function(d){return d.justified?'✅ Justified':'⚠️ Exceeds Limit';}),'rt-tot');
+  b+='</tbody>';
+  html+=wrap('CMA Form V — Maximum Permissible Bank Finance (MPBF)','FORM V',b,
+    'Tandon Committee Method I & II. Debtor days: '+G.debtorDays+' · Stock months: '+G.stockMonths+' · Creditor days: '+G.creditorDays+' · Op. Cycle: '+Math.round(G.debtorDays+(G.stockMonths*30)-G.creditorDays)+' days');
+
+  // ── 9. FORM VI — FUND FLOW ────────────────────────────────
+  b='<thead>'+th(yrs)+'</thead><tbody>';
+  b+=sec('SOURCES OF FUNDS',Ni);
+  b+=row('Net Profit after Tax',D.map(function(d){return d.netProfit;}),'ri');
+  b+=row('Add: Depreciation',D.map(function(d){return d.depnYr;}),'ri');
+  b+=row('Funds from Operations',D.map(function(d){return d.netProfit+d.depnYr;}),'rt-tot');
+  b+=row(loanType==='CC'?'CC Availed (Year 1)':'Term Loan Raised (Year 1)',D.map(function(d,i){return i===0?G.loan:0;}),'ri');
+  b+=row('Increase in Capital / Equity',D.map(function(){return 0;}),'ri');
+  b+=row('TOTAL SOURCES OF FUNDS',D.map(function(d,i){return d.netProfit+d.depnYr+(i===0?G.loan:0);}),'rt-tot');
+  b+=blk(Ni);
+  b+=sec('APPLICATION OF FUNDS',Ni);
+  b+=row('Proprietor Drawings / Withdrawals',D.map(function(){return G.drawings;}),'ri');
+  b+=row('Capital Expenditure (Fixed Assets)',D.map(function(){return G.capex;}),'ri');
+  if(loanType==='TL') b+=row('Repayment of Term Loan',D.map(function(d){return d.tlRepay;}),'ri');
+  b+=row('Net Increase in Working Capital',D.map(function(d,i){
+    return i===0?Math.max(d.totalCA-G.cash0-G.debtors0-G.inventory0,0):Math.max(d.totalCA-D[i-1].totalCA,0);
+  }),'ri');
+  b+=row('TOTAL APPLICATIONS',D.map(function(d,i){
+    var rep=loanType==='TL'?d.tlRepay:0;
+    var wci=i===0?Math.max(d.totalCA-G.cash0-G.debtors0-G.inventory0,0):Math.max(d.totalCA-D[i-1].totalCA,0);
+    return G.drawings+G.capex+rep+wci;
+  }),'rt-tot');
+  b+='</tbody>';
+  html+=wrap('CMA Form VI — Fund Flow Statement','FORM VI',b,'');
+
+  // ── 10. DEPRECIATION SCHEDULE ────────────────────────────
+  b='<thead><tr><th>Year</th><th>Opening WDV</th><th>Additions (Capex)</th><th>Gross Block</th><th>Rate</th><th>Depreciation</th><th>Closing WDV (Net Block)</th></tr></thead><tbody>';
+  var prvWdv=G.grossFA0-G.accDepn0;
+  D.forEach(function(d,i){
+    b+='<tr><td>'+yrs[i]+'</td><td>'+fmt(prvWdv)+'</td><td>'+fmt(G.capex)+'</td>'
+      +'<td>'+fmt(d.grossFA)+'</td><td>'+fmtR(G.depnRate*100,0)+'%</td>'
+      +'<td>'+fmt(d.depnYr)+'</td><td>'+fmt(d.netFA)+'</td></tr>';
+    prvWdv=d.netFA;
+  });
+  b+='</tbody>';
+  html+=wrap('Depreciation Schedule (WDV Method — Income Tax Act)',fmtR(G.depnRate*100,0)+'% WDV',b,'');
+
+  // ── 11. DSCR ─────────────────────────────────────────────
+  b='<thead>'+th(yrs)+'</thead><tbody>';
+  b+=row('Net Profit after Tax',D.map(function(d){return d.netProfit;}));
+  b+=row('Add: Depreciation',D.map(function(d){return d.depnYr;}),'ri');
+  b+=row('Add: Interest Expense',D.map(function(d){return d.interest;}),'ri');
+  b+=row('Cash Accrual — DSCR Numerator (A)',D.map(function(d){return d.ebitda;}),'rt-tot');
+  b+=blk(Ni);
+  if(loanType==='TL'){
+    b+=row('Term Loan Repayment',D.map(function(d){return d.tlRepay;}),'ri');
+    b+=row('Interest on Term Loan',D.map(function(d){return d.interest;}),'ri');
+    b+=row('Total Debt Service (B)',D.map(function(d){return d.tlRepay+d.interest;}),'rt-tot');
+  } else {
+    b+=row('Interest on CC (B)',D.map(function(d){return d.interest;}),'ri');
+  }
+  b+=rowR('DSCR = A ÷ B',D.map(function(d){return d.dscr;}),'rt-p');
+  var avgDSCR=D.reduce(function(s,d){return s+d.dscr;},0)/Ni;
+  var minDSCR=D.reduce(function(m,d){return Math.min(m,d.dscr);},Infinity);
+  b+='<tr class="rt-tot"><td colspan="'+(Ni+1)+'">Average DSCR: <strong>'+fmtR(avgDSCR)+'×</strong> &nbsp;|&nbsp; Minimum DSCR: <strong>'+fmtR(minDSCR)+'×</strong> — '+(avgDSCR>=1.5?'✅ Satisfactory (≥ 1.5)':'⚠️ Below benchmark of 1.5 — review required')+'</td></tr>';
+  b+='</tbody>';
+  html+=wrap('Debt Service Coverage Ratio (DSCR)','DSCR',b,'DSCR benchmark: ≥ 1.5 (satisfactory) · ≥ 1.0 (minimum acceptable)');
+
+  // ── 12. RATIO ANALYSIS ────────────────────────────────────
+  // Summary ratio cards for Year 1 and trend
+  var yr1=D[0], yrLast=D[Ni-1];
+  function ratioCard(label,valYr1,unit,goodAbove,warnAbove,maxVal,bench,trend,invert){
+    var cc=colorClass(valYr1,goodAbove,warnAbove,invert);
+    var pct=barWidth(invert?Math.max(maxVal-valYr1,0):valYr1,maxVal);
+    var fillColor=cc==='green'?'var(--green)':cc==='gold'?'var(--gold)':'var(--accent)';
+    return '<div class="ratio-card '+cc+'">'
+      +'<div class="rc-label">'+label+'</div>'
+      +'<div class="rc-value '+cc+'">'+fmtR(valYr1,2)+(unit?'<span style="font-size:.7rem;opacity:.7"> '+unit+'</span>':'')+'</div>'
+      +'<div class="rc-bench">Benchmark: '+bench+'</div>'
+      +'<div class="rc-bar"><div class="rc-fill" style="width:'+pct+'%;background:'+fillColor+'"></div></div>'
+      +'<div class="rc-trend">'+trend.map(function(t,i){return '<span class="rc-yr">'+yrs[i]+': '+fmtR(t,2)+'</span>';}).join('')+'</div>'
+      +'</div>';
+  }
+  html+='<div class="rcard"><div class="rhdr"><h3>Ratio Analysis — Year-wise Summary</h3><span class="rbadge">RATIOS</span></div>';
+  html+='<div class="rnote">Key financial ratios across projection period. Green = good, Gold = acceptable, Red = needs attention.</div>';
+  html+='<div class="ratio-grid">';
+  // Profitability
+  html+=ratioCard('Net Profit Margin',yr1.npRatio,'%',7,3,20,'≥ 7% (good)',D.map(function(d){return d.npRatio;}),false);
+  html+=ratioCard('Gross Profit Margin',yr1.gpRatio,'%',12,6,40,'≥ 12% (good)',D.map(function(d){return d.gpRatio;}),false);
+  html+=ratioCard('Return on Equity',Math.min((yr1.netProfit/Math.max(yr1.netWorth,1))*100,99),'%',12,6,30,'≥ 12% (good)',D.map(function(d){return Math.min((d.netProfit/Math.max(d.netWorth,1))*100,99);}),false);
+  html+=ratioCard('EBITDA Margin',(yr1.ebitda/yr1.sales)*100,'%',10,5,30,'≥ 10% (good)',D.map(function(d){return (d.ebitda/d.sales)*100;}),false);
+  // Liquidity
+  html+=ratioCard('Current Ratio',yr1.curRatio,'x',1.33,1.0,3,'≥ 1.33 (good)',D.map(function(d){return d.curRatio;}),false);
+  html+=ratioCard('Quick Ratio',(yr1.debtors+yr1.cashBank)/Math.max(yr1.totalCL_nb,1),'x',1.0,.75,2.5,'≥ 1.0 (good)',D.map(function(d){return (d.debtors+d.cashBank)/Math.max(d.totalCL_nb,1);}),false);
+  // Leverage
+  html+=ratioCard('Debt : Equity',yr1.deRatio,'x',2,3,6,'< 2 (good)',D.map(function(d){return d.deRatio;}),true);
+  html+=ratioCard('Interest Coverage (ICR)',yr1.icr,'x',2.5,1.5,6,'≥ 2.5 (good)',D.map(function(d){return d.icr;}),false);
+  // WC Efficiency
+  html+=ratioCard('Debtor Days',yr1.debtors/(yr1.sales/365),'days',30,60,120,'< 30 days (ideal)',D.map(function(d){return d.debtors/(d.sales/365);}),true);
+  html+=ratioCard('Creditor Days',yr1.creditors/(yr1.purch/365),'days',45,30,120,'30–60 days (ideal)',D.map(function(d){return d.creditors/(d.purch/365);}),false);
+  html+=ratioCard('Inventory Turnover',yr1.inventoryTurnover,'x',6,4,15,'≥ 6× (good)',D.map(function(d){return d.inventoryTurnover;}),false);
+  html+=ratioCard('DSCR',yr1.dscr,'x',1.5,1.0,3,'≥ 1.5 (benchmark)',D.map(function(d){return d.dscr;}),false);
+  html+='</div>';
+  // Detailed ratio table below the cards
+  b='<thead>'+th(yrs,'Ratio')+'</thead><tbody>';
+  b+=sec('PROFITABILITY RATIOS',Ni);
+  b+=rowR('Gross Profit Margin (%)',D.map(function(d){return d.gpRatio;}),'ri');
+  b+=rowR('Net Profit Margin (%)',D.map(function(d){return d.npRatio;}),'ri');
+  b+=rowR('EBITDA Margin (%)',D.map(function(d){return (d.ebitda/d.sales)*100;}),'ri');
+  b+=rowR('Return on Equity (%)',D.map(function(d){return (d.netProfit/Math.max(d.netWorth,1))*100;}),'ri');
+  b+=rowR('Return on Assets (%)',D.map(function(d){return (d.netProfit/Math.max(d.totalBSA,1))*100;}),'ri');
+  b+=sec('LIQUIDITY RATIOS',Ni);
+  b+=rowR('Current Ratio (x)',D.map(function(d){return d.curRatio;}),'ri');
+  b+=rowR('Quick Ratio (x)',D.map(function(d){return (d.debtors+d.cashBank)/Math.max(d.totalCL_nb,1);}),'ri');
+  b+=rowR('Cash Ratio (x)',D.map(function(d){return d.cashBank/Math.max(d.totalCL_nb,1);}),'ri');
+  b+=sec('LEVERAGE / SOLVENCY RATIOS',Ni);
+  b+=rowR('Debt : Equity Ratio (x)',D.map(function(d){return d.deRatio;}),'ri');
+  b+=rowR('Interest Coverage Ratio (ICR) (x)',D.map(function(d){return d.icr;}),'ri');
+  b+=rowR('Debt Service Coverage (DSCR) (x)',D.map(function(d){return d.dscr;}),'ri');
+  b+=rowR('Total Debt / EBITDA (x)',D.map(function(d){return d.totalDebt/Math.max(d.ebitda,1);}),'ri');
+  b+=sec('WORKING CAPITAL EFFICIENCY',Ni);
+  b+=rowR('Debtor Days',D.map(function(d){return d.debtors/(d.sales/365);}),'ri');
+  b+=rowR('Creditor Days',D.map(function(d){return d.creditors/(d.purch/365);}),'ri');
+  b+=rowR('Inventory Holding (months)',D.map(function(d){return d.closeSt/(d.purch/12);}),'ri');
+  b+=rowR('Inventory Turnover (x)',D.map(function(d){return d.inventoryTurnover;}),'ri');
+  b+=rowR('Working Capital Turnover (x)',D.map(function(d){return d.sales/Math.max(d.wcGap,1);}),'ri');
+  b+=rowR('Asset Turnover (x)',D.map(function(d){return d.sales/Math.max(d.totalBSA,1);}),'ri');
+  b+='</tbody>';
+  html+='<div class="ts"><table class="rt">'+b+'</table></div>';
+  html+='<div class="print-footer">LoanProj CMA Report · Provisional Projections · Not Audited</div>';
+  html+='</div>';
+
+  // ── 13. SENSITIVITY ───────────────────────────────────────
+  var scenarios=[
+    {l:'Base Case',           sA:1.00,eA:1.00},
+    {l:'Sales −10%',          sA:0.90,eA:1.00},
+    {l:'Sales −20%',          sA:0.80,eA:1.00},
+    {l:'Expenses +15%',       sA:1.00,eA:1.15},
+    {l:'Worst (S−15%, E+10%)',sA:0.85,eA:1.10},
+    {l:'Best Case (S+10%)',   sA:1.10,eA:1.00},
+  ];
+  html+='<div class="rcard"><div class="rhdr"><h3>Sensitivity Analysis — Year 1 Stress Test</h3><span class="rbadge">STRESS TEST</span></div><div class="sgrid">';
+  scenarios.forEach(function(s){
+    var aS=yr1.sales*s.sA;
+    var aE=yr1.indExpTotal*s.eA;
+    var aGP=(aS+yr1.closeSt)-(yr1.openSt+yr1.purch+aE);
+    var aNP=aGP-yr1.depnYr-yr1.interest;
+    var aEBITDA=aNP+yr1.depnYr+yr1.interest;
+    var aDS=loanType==='CC'?yr1.interest:(yr1.tlRepay+yr1.interest);
+    var aDSCR=aEBITDA/Math.max(aDS,1);
+    var ok=aNP>0&&aDSCR>=1.0;
+    html+='<div class="scard">'
+      +'<div class="shdr" style="background:'+(ok?'#edf7f2':'#fff0ed')+';color:'+(ok?'var(--green)':'var(--accent)')+'">'+s.l+'</div>'
+      +'<div class="sbdy">'
+      +'<div class="sr"><span>Sales</span><span>₹ '+fmt(aS)+'</span></div>'
+      +'<div class="sr"><span>Gross Profit</span><span>₹ '+fmt(aGP)+'</span></div>'
+      +'<div class="sr"><span>Net Profit</span><span style="font-weight:700;color:'+(aNP>0?'var(--green)':'var(--accent)')+'">₹ '+fmt(aNP)+'</span></div>'
+      +'<div class="sr"><span>DSCR</span><span style="font-weight:700;color:'+(aDSCR>=1.5?'var(--green)':aDSCR>=1?'#b8922a':'var(--accent)')+'">'+fmtR(aDSCR)+'×</span></div>'
+      +'<div class="sr"><span>Viable?</span><span>'+(ok?'✅ Yes':'❌ At risk')+'</span></div>'
+      +'</div></div>';
+  });
+  html+='</div><div class="print-footer">LoanProj CMA Report · Provisional Projections · Not Audited</div></div>';
+
+  // ── 14. AT A GLANCE ───────────────────────────────────────
+  var mets=[
+    {t:'NP Margin %',    v:D.map(function(d,i){return{y:yrs[i],v:d.npRatio,      g:d.npRatio>7,   w:d.npRatio>3};})},
+    {t:'GP Margin %',    v:D.map(function(d,i){return{y:yrs[i],v:d.gpRatio,       g:d.gpRatio>12,  w:d.gpRatio>6};})},
+    {t:'Current Ratio',  v:D.map(function(d,i){return{y:yrs[i],v:d.curRatio,      g:d.curRatio>1.33,w:d.curRatio>1};})},
+    {t:'Debt:Equity',    v:D.map(function(d,i){return{y:yrs[i],v:d.deRatio,       g:d.deRatio<2,   w:d.deRatio<3};})},
+    {t:'DSCR',           v:D.map(function(d,i){return{y:yrs[i],v:d.dscr,          g:d.dscr>=1.5,   w:d.dscr>=1};})},
+  ];
+  html+='<div class="rcard"><div class="rhdr"><h3>At a Glance — All Years</h3></div><div class="indgrid">';
+  mets.forEach(function(m){
+    html+='<div class="icard"><div class="it">'+m.t+'</div>';
+    m.v.forEach(function(v){
+      var c=v.g?'ig':v.w?'iw':'ib';
+      html+='<div class="ir"><span class="iy">'+v.y+'</span><span class="iv '+c+'">'+fmtR(v.v)+'</span></div>';
+    });
+    html+='</div>';
+  });
+  html+='</div><div class="print-footer">LoanProj CMA Report · Provisional Projections · Not Audited</div></div>';
+
+  document.getElementById('output').innerHTML=html;
+  document.getElementById('output').scrollIntoView({behavior:'smooth'});
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',function(){
+  buildExpTable();
+  simpleAutoFill();
+  detailedPreview();
+});
+</script>
+</body>
+</html>
